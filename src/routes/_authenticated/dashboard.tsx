@@ -15,6 +15,7 @@ import {
   Activity,
   AlertCircle,
   ArrowDownToLine,
+  ArrowRightLeft,
   ArrowUpRight,
   BadgeCheck,
   Banknote,
@@ -337,33 +338,39 @@ function Dashboard() {
 
   return (
     <div className="mx-auto w-full max-w-[1720px] overflow-x-hidden space-y-5 pb-24 md:pb-0">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Welcome back, {name} 👋</h1>
           <p className="text-sm text-muted-foreground">Here&apos;s your portfolio overview and account summary.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="rounded-xl" onClick={load} disabled={refreshing}><RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />Refresh</Button>
-          <Link to="/deposit"><Button className="rounded-xl bg-gradient-primary text-primary-foreground"><Plus className="mr-2 h-4 w-4" />Deposit</Button></Link>
-          <Link to="/invest"><Button className="rounded-xl bg-gradient-accent text-accent-foreground"><Wallet className="mr-2 h-4 w-4" />Start investing</Button></Link>
-          <Link to="/withdraw"><Button variant="outline" className="rounded-xl"><ArrowDownToLine className="mr-2 h-4 w-4" />Withdraw</Button></Link>
-          <Button variant="outline" className="rounded-xl" onClick={exportCsv}><Download className="mr-2 h-4 w-4" />Statement</Button>
-        </div>
+        <Button variant="outline" className="w-fit rounded-xl px-4" onClick={load} disabled={refreshing}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.55fr)_minmax(0,0.55fr)_minmax(0,0.55fr)]">
-        <Card className="relative min-w-0 overflow-hidden rounded-[1.75rem] border-0 bg-gradient-to-br from-[#0c63ff] via-[#0956d6] to-[#063b9c] p-6 text-white shadow-[0_24px_60px_-25px_rgba(12,99,255,.65)]">
-          <div className="absolute right-4 top-6 h-28 w-44 opacity-60"><SparkLine data={chartData.slice(-14).map((d) => d.value)} stroke="rgba(255,255,255,.92)" fill="rgba(255,255,255,.14)" /></div>
-          <div className="relative flex items-center gap-2 text-sm text-white/85">Total Portfolio Value <button onClick={() => setPrivacy(!balanceVisible)} className="rounded-full p-1 transition hover:bg-white/10" aria-label="Toggle balance visibility">{balanceVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button></div>
-          <div className="relative mt-2 font-display text-4xl font-extrabold md:text-5xl">{mask(balanceVisible, formatCurrency(displayTotal))}</div>
-          <div className="relative mt-3 flex items-center gap-2"><span className="inline-flex items-center gap-1 rounded-full bg-emerald-400 px-3 py-1 text-xs font-bold text-white"><ArrowUpRight className="h-3.5 w-3.5" />{monthlyGrowth}</span><span className="text-sm text-white/80">vs last 30 days</span></div>
-          <div className="relative mt-8 grid grid-cols-2 gap-4 border-t border-white/15 pt-5 sm:grid-cols-4 sm:gap-0">
-            <HeroMetric label="Available Bal." value={mask(balanceVisible, formatCurrency(displayBalance.available))} />
-            <HeroMetric label="Invested Amou..." value={mask(balanceVisible, formatCurrency(displayBalance.invested))} />
-            <HeroMetric label="Total Profit" value={mask(balanceVisible, formatCurrency(displayBalance.total_profit))} sub={profitGrowth} />
-            <HeroMetric label="Monthly Gro..." value={monthlyGrowth} />
+        <div className="min-w-0 space-y-4 lg:col-span-2 2xl:col-span-1">
+          <Card className="relative min-w-0 overflow-hidden rounded-[1.75rem] border-0 bg-gradient-to-br from-[#0c63ff] via-[#0956d6] to-[#063b9c] p-5 text-white shadow-[0_24px_60px_-25px_rgba(12,99,255,.65)] sm:p-6">
+            <div className="absolute right-4 top-6 h-24 w-36 opacity-60 sm:h-28 sm:w-44"><SparkLine data={chartData.slice(-14).map((d) => d.value)} stroke="rgba(255,255,255,.92)" fill="rgba(255,255,255,.14)" /></div>
+            <div className="relative flex items-center gap-2 text-sm text-white/85">Total Portfolio Value <button onClick={() => setPrivacy(!balanceVisible)} className="rounded-full p-1 transition hover:bg-white/10" aria-label="Toggle balance visibility">{balanceVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button></div>
+            <div className="relative mt-2 break-words font-display text-[2.4rem] font-extrabold leading-none tracking-tight sm:text-5xl">{mask(balanceVisible, formatCurrency(displayTotal))}</div>
+            <div className="relative mt-3 flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1 rounded-full bg-emerald-400 px-3 py-1 text-xs font-bold text-white"><ArrowUpRight className="h-3.5 w-3.5" />{monthlyGrowth}</span><span className="text-sm text-white/80">vs last 30 days</span></div>
+            <div className="relative mt-7 grid grid-cols-2 gap-4 border-t border-white/15 pt-5 sm:grid-cols-4 sm:gap-0">
+              <HeroMetric label="Available" value={mask(balanceVisible, formatCurrency(displayBalance.available))} />
+              <HeroMetric label="Invested" value={mask(balanceVisible, formatCurrency(displayBalance.invested))} />
+              <HeroMetric label="Profit" value={mask(balanceVisible, formatCurrency(displayBalance.total_profit))} sub={profitGrowth} />
+              <HeroMetric label="Growth" value={monthlyGrowth} />
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 2xl:grid-cols-2">
+            <QuickBankAction icon={Plus} title="Deposit" body="Fund account" to="/deposit" tone="blue" />
+            <QuickBankAction icon={ArrowRightLeft} title="Transfer" body="Move funds" onClick={() => toast.info("Transfer feature is coming soon")} tone="emerald" />
+            <QuickBankAction icon={ArrowDownToLine} title="Withdraw" body="Cash out" to="/withdraw" tone="violet" />
+            <QuickBankAction icon={FileText} title="Statement" body="Download report" onClick={exportCsv} tone="slate" />
           </div>
-        </Card>
+        </div>
 
         <Card className="min-w-0 rounded-[1.75rem] border-border/70 bg-card p-5 shadow-soft">
           <div className="flex items-start justify-between"><div><p className="text-xs font-semibold text-muted-foreground">Next Action</p><h3 className="mt-2 font-display text-lg font-bold">{nextAction.title}</h3></div><span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300"><NextActionIcon className="h-5 w-5" /></span></div>
@@ -398,13 +405,6 @@ function Dashboard() {
           </div>
           <Link to="/kyc"><Button variant="outline" className="mt-5 w-full rounded-xl">{profileButtonLabel}</Button></Link>
         </Card>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <QuickAction icon={Plus} title="Deposit" body="Add funds instantly" to="/deposit" />
-        <QuickAction icon={TrendingUp} title="Start investing" body="Explore investment plans" to="/invest" />
-        <QuickAction icon={ArrowDownToLine} title="Withdraw" body="Request your earnings" to="/withdraw" />
-        <button onClick={exportCsv} className="min-w-0 rounded-[1.4rem] border border-border/70 bg-card p-4 text-left shadow-soft transition hover:-translate-y-0.5 hover:shadow-elegant"><span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300"><Download className="h-5 w-5" /></span><div className="mt-3 font-semibold">Download statement</div><div className="text-sm text-muted-foreground">Get your account statement</div></button>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-[minmax(0,0.75fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_minmax(0,0.9fr)]">
@@ -531,6 +531,26 @@ function HeroMetric({ label, value, sub }: { label: string; value: string; sub?:
 }
 function SectionHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) { return <div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><h2 className="font-display text-lg font-bold leading-tight">{title}</h2>{subtitle && <p className="mt-1 truncate text-sm text-muted-foreground">{subtitle}</p>}</div>{action && <div className="shrink-0 text-right">{action}</div>}</div>; }
 function PeriodPills() { return <div className="hidden gap-1 md:flex">{["7D", "30D", "90D"].map((p) => <Badge key={p} variant="outline" className={`rounded-full ${p === "30D" ? "border-primary bg-primary/5 text-primary" : ""}`}>{p}</Badge>)}</div>; }
+function QuickBankAction({ icon: Icon, title, body, to, onClick, tone = "blue" }: { icon: any; title: string; body: string; to?: string; onClick?: () => void; tone?: "blue" | "emerald" | "violet" | "slate" }) {
+  const toneClass = tone === "emerald"
+    ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300"
+    : tone === "violet"
+      ? "bg-violet-50 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300"
+      : tone === "slate"
+        ? "bg-slate-100 text-slate-700 dark:bg-slate-400/10 dark:text-slate-200"
+        : "bg-blue-50 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300";
+  const content = (
+    <>
+      <span className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${toneClass}`}><Icon className="h-5 w-5" /></span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-bold text-foreground">{title}</span>
+        <span className="block truncate text-xs text-muted-foreground">{body}</span>
+      </span>
+    </>
+  );
+  const classes = "group flex min-h-[76px] min-w-0 items-center gap-3 rounded-[1.25rem] border border-border/70 bg-card p-3 text-left shadow-soft transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-elegant active:scale-[0.98]";
+  return to ? <Link to={to as any} className={classes}>{content}</Link> : <button type="button" onClick={onClick} className={classes}>{content}</button>;
+}
 function QuickAction({ icon: Icon, title, body, to }: { icon: any; title: string; body: string; to: string }) { return <Link to={to as any} className="min-w-0 rounded-[1.4rem] border border-border/70 bg-card p-4 shadow-soft transition hover:-translate-y-0.5 hover:shadow-elegant"><span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300"><Icon className="h-5 w-5" /></span><div className="mt-3 font-semibold">{title}</div><div className="text-sm text-muted-foreground">{body}</div></Link>; }
 function BalanceRow({ icon: Icon, label, value, tone }: { icon: any; label: string; value: string; tone: string }) { return <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-2xl bg-secondary/50 px-3 py-2"><span className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground"><span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl ${toneClass(tone)}`}><Icon className="h-3.5 w-3.5" /></span><span className="min-w-0 truncate" title={label}>{label}</span></span><span className="max-w-[120px] truncate text-right text-sm font-bold sm:max-w-[150px]" title={value}>{value}</span></div>; }
 function LimitRow({ label, value, good }: { label: string; value: string; good?: boolean }) { return <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-2xl bg-secondary/50 px-3 py-2 text-sm"><span className="truncate text-muted-foreground" title={label}>{label}</span><span className={`max-w-[150px] truncate text-right text-xs font-semibold sm:text-sm ${good ? "text-emerald-600" : ""}`} title={value}>{value}</span></div>; }

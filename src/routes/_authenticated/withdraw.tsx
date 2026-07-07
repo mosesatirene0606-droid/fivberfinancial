@@ -232,19 +232,19 @@ function WithdrawPage() {
       </div>
 
       <Dialog open={receiptOpen} onOpenChange={(open) => !loading && setReceiptOpen(open)}>
-        <DialogContent className="max-w-2xl rounded-[1.75rem] p-0 shadow-elegant">
-          <DialogHeader className="border-b border-border/70 p-6">
-            <DialogTitle className="flex items-center gap-3 font-display text-2xl">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-primary dark:bg-blue-400/10"><FileText className="h-5 w-5" /></span>
-              Withdrawal receipt
+        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-2xl overflow-hidden rounded-[1.5rem] p-0 shadow-elegant sm:w-full sm:rounded-[1.75rem]">
+          <DialogHeader className="border-b border-border/70 p-4 sm:p-6">
+            <DialogTitle className="flex items-center gap-3 font-display text-xl sm:text-2xl">
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-primary dark:bg-blue-400/10 sm:h-11 sm:w-11"><FileText className="h-5 w-5" /></span>
+              <span className="min-w-0 truncate">Withdrawal receipt</span>
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm leading-relaxed">
               Review the withdrawal details and 30% intensive payment before placing this request in pending review.
             </DialogDescription>
           </DialogHeader>
 
           {pendingReceipt && (
-            <div className="space-y-5 p-6">
+            <div className="max-h-[calc(100dvh-13rem)] space-y-4 overflow-y-auto px-4 py-4 sm:max-h-[calc(100dvh-15rem)] sm:space-y-5 sm:p-6">
               <div className="grid gap-3 sm:grid-cols-3">
                 <ReceiptMetric label="Requested amount" value={formatCurrency(pendingReceipt.amount)} />
                 <ReceiptMetric label="30% intensive payment" value={formatCurrency(pendingReceipt.interest)} accent />
@@ -252,11 +252,11 @@ function WithdrawPage() {
               </div>
               <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-sm text-blue-800 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-100">
                 <div className="font-semibold">Payment reference</div>
-                <div className="mt-1 break-all font-mono text-base font-bold">{pendingReceipt.paymentReference}</div>
-                <p className="mt-2 text-xs opacity-80">After you accept, the app will open your 30% intensive payment page. The amount is already attached, so the user will only choose a wallet.</p>
+                <div className="mt-1 break-all font-mono text-sm font-bold sm:text-base">{pendingReceipt.paymentReference}</div>
+                <p className="mt-2 text-xs leading-relaxed opacity-80">After you accept, the app will open your 30% intensive payment page. The amount is already attached, so the user will only choose a wallet.</p>
               </div>
 
-              <div className="rounded-3xl border border-border/70 bg-secondary/40 p-5">
+              <div className="rounded-2xl border border-border/70 bg-secondary/40 p-4 sm:rounded-3xl sm:p-5">
                 <div className="mb-3 flex items-center gap-2 font-semibold"><CircleDollarSign className="h-4 w-4 text-primary" /> Transaction instruction</div>
                 <ol className="space-y-2 text-sm text-muted-foreground">
                   <li><b className="text-foreground">1.</b> Confirm the withdrawal method: <b className="text-foreground">{method}</b>.</li>
@@ -272,9 +272,9 @@ function WithdrawPage() {
             </div>
           )}
 
-          <DialogFooter className="border-t border-border/70 p-6 sm:justify-between">
-            <Button type="button" variant="outline" className="rounded-xl" disabled={loading} onClick={() => setReceiptOpen(false)}>Cancel</Button>
-            <Button type="button" className="rounded-xl bg-gradient-primary text-primary-foreground" disabled={loading} onClick={confirmWithdrawal}>
+          <DialogFooter className="sticky bottom-0 flex-col-reverse gap-2 border-t border-border/70 bg-background/95 p-4 backdrop-blur sm:flex-row sm:justify-between sm:p-6">
+            <Button type="button" variant="outline" className="h-12 w-full rounded-xl sm:w-auto" disabled={loading} onClick={() => setReceiptOpen(false)}>Cancel</Button>
+            <Button type="button" className="h-12 w-full rounded-xl bg-gradient-primary text-primary-foreground sm:w-auto" disabled={loading} onClick={confirmWithdrawal}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
               Accept and open payment link
             </Button>
@@ -287,9 +287,9 @@ function WithdrawPage() {
 
 function ReceiptMetric({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-soft">
+    <div className="min-w-0 rounded-2xl border border-border/70 bg-card p-4 shadow-soft">
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
-      <div className={`mt-1 truncate font-display text-xl font-bold ${accent ? "text-emerald-600" : ""}`}>{value}</div>
+      <div className={`mt-1 truncate font-display text-2xl font-bold leading-tight sm:text-xl ${accent ? "text-emerald-600" : ""}`} title={value}>{value}</div>
     </div>
   );
 }
