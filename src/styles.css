@@ -55,6 +55,141 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* =========================================
+   FivberFinancial brand loader
+========================================= */
+
+.ff-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.ff-loader--fullscreen {
+  min-height: 100vh;
+  width: 100%;
+  background:
+    radial-gradient(circle at top, rgba(59, 130, 246, 0.06), transparent 40%),
+    linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.ff-loader__frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.ff-loader__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+}
+
+.ff-loader__ring--outer {
+  border: 8px solid rgba(37, 99, 235, 0.12);
+  border-top-color: #2563eb;
+  border-right-color: #38bdf8;
+  border-bottom-color: rgba(37, 99, 235, 0.22);
+  animation: ff-spin 1.2s linear infinite;
+}
+
+.ff-loader__ring--inner {
+  inset: 14px;
+  border: 6px dashed rgba(56, 189, 248, 0.34);
+  border-left-color: #60a5fa;
+  border-right-color: #1d4ed8;
+  animation: ff-spin-reverse 1.8s linear infinite;
+}
+
+.ff-loader__core {
+  position: relative;
+  z-index: 2;
+  width: 72%;
+  height: 72%;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #ffffff 0%, #f4f8ff 100%);
+  box-shadow:
+    0 12px 30px rgba(29, 78, 216, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.ff-loader__icon {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+  animation: ff-pulse 2.2s ease-in-out infinite;
+}
+
+.ff-loader__label {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+
+@keyframes ff-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ff-spin-reverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes ff-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 rgba(37, 99, 235, 0.16));
+  }
+  50% {
+    transform: scale(1.03);
+    filter: drop-shadow(0 8px 18px rgba(37, 99, 235, 0.18));
+  }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .ff-loader__ring--outer,
+  .ff-loader__ring--inner,
+  .ff-loader__icon {
+    animation-duration: 3s;
+  }
+}
+
+/* Better dark mode for loader */
+.dark .ff-loader--fullscreen {
+  background:
+    radial-gradient(circle at top, rgba(59, 130, 246, 0.12), transparent 40%),
+    linear-gradient(180deg, #08111f 0%, #0b1324 100%);
+}
+
+.dark .ff-loader__core {
+  background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.dark .ff-loader__label {
+  color: #e5eefc;
+}
+
 :root {
   --radius: 0.875rem;
 

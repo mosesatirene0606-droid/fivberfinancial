@@ -74,12 +74,6 @@ function WithdrawPage() {
       total_intensive_obligation: totalDue,
       intensive_payment_reference: paymentReference,
       intensive_payment_status: "awaiting_payment",
-      // Legacy keys kept temporarily so existing admin/RPC code and older records do not break.
-      loan_interest_rate: "30%",
-      loan_interest_amount: interest,
-      total_loan_obligation: totalDue,
-      loan_payment_reference: paymentReference,
-      loan_payment_status: "awaiting_payment",
       receipt_acknowledgement_required: true,
       instruction_steps: [
         "Review the withdrawal receipt and 30% intensive payment summary.",

@@ -1,4 +1,4 @@
--- fivberfinancial admin deposit/withdrawal review visibility + simulation flow fix
+-- fivberfinancial admin deposit/withdrawal review visibility + admin review flow fix
 -- Adds admin-only RPC list functions for deposits/withdrawals, and hardens approval/update functions.
 
 CREATE OR REPLACE FUNCTION public.admin_list_deposit_requests()
@@ -62,7 +62,7 @@ RETURNS TABLE (
   created_at TIMESTAMPTZ,
   processed_at TIMESTAMPTZ,
   processed_by UUID,
-  loan_interest_amount NUMERIC,
+  intensive_payment_amount NUMERIC,
   total_obligation NUMERIC
 )
 LANGUAGE plpgsql
@@ -86,8 +86,8 @@ BEGIN
     w.created_at,
     w.processed_at,
     w.processed_by,
-    COALESCE(NULLIF(w.destination_account->>'loan_interest_amount', '')::numeric, round(w.amount * 0.30, 2)) AS loan_interest_amount,
-    COALESCE(NULLIF(w.destination_account->>'total_loan_obligation', '')::numeric, round(w.amount * 1.30, 2)) AS total_obligation
+    COALESCE(NULLIF(w.destination_account->>'intensive_payment_amount', '')::numeric, NULLIF(w.destination_account->>'loan_interest_amount', '')::numeric, round(w.amount * 0.30, 2)) AS intensive_payment_amount,
+    COALESCE(NULLIF(w.destination_account->>'total_intensive_obligation', '')::numeric, NULLIF(w.destination_account->>'total_loan_obligation', '')::numeric, round(w.amount * 1.30, 2)) AS total_obligation
   FROM public.withdrawal_requests w
   LEFT JOIN public.profiles p ON p.id = w.user_id
   ORDER BY w.created_at DESC;

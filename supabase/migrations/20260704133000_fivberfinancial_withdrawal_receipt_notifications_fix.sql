@@ -1,6 +1,6 @@
 -- fivberfinancial withdrawal receipt + notification read UX support
--- Keeps the strict KYC-before-withdrawal rule and stores the 30% simulation interest details
--- inside withdrawal_requests.destination_account JSONB. No separate loan account is created.
+-- Keeps the strict KYC-before-withdrawal rule and stores the 30% intensive payment details
+-- inside withdrawal_requests.destination_account JSONB. No separate intensive account is created.
 
 CREATE OR REPLACE FUNCTION public.create_withdrawal(_amount NUMERIC, _method TEXT, _destination_account JSONB)
 RETURNS UUID
@@ -39,10 +39,10 @@ BEGIN
   _total := round((_amount + _interest)::numeric, 2);
   _payload := COALESCE(_destination_account, '{}'::jsonb)
     || jsonb_build_object(
-      'loan_interest_rate', COALESCE(_destination_account->>'loan_interest_rate', '30%'),
-      'loan_interest_amount', COALESCE((_destination_account->>'loan_interest_amount')::numeric, _interest),
-      'total_loan_obligation', COALESCE((_destination_account->>'total_loan_obligation')::numeric, _total),
-      'simulation_receipt_required', true
+      'intensive_payment_rate', COALESCE(_destination_account->>'intensive_payment_rate', '30%'),
+      'intensive_payment_amount', COALESCE((_destination_account->>'intensive_payment_amount')::numeric, _interest),
+      'total_intensive_obligation', COALESCE((_destination_account->>'total_intensive_obligation')::numeric, _total),
+      'receipt_acknowledgement_required', true
     );
 
   INSERT INTO public.balances (user_id) VALUES (auth.uid())
@@ -73,7 +73,7 @@ BEGIN
     _amount,
     'pending',
     _method,
-    'Withdrawal request pending with 30% simulation interest receipt',
+    'Withdrawal request pending with 30% intensive payment receipt',
     _id
   );
 
@@ -82,7 +82,7 @@ BEGIN
     auth.uid(),
     'withdrawal',
     'Withdrawal request pending',
-    'Your withdrawal receipt was accepted. The request is pending admin review with the 30% simulation interest note attached.'
+    'Your withdrawal receipt was accepted. The request is pending admin review with the 30% intensive payment note attached.'
   );
 
   RETURN _id;

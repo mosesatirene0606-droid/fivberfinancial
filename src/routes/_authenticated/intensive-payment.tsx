@@ -204,14 +204,30 @@ export function IntensivePaymentPage() {
     // the user from opening the wallet link. This keeps the button active even when
     // the link was copied/shared, the withdrawal is not found, or Supabase is slow.
     if (withdrawalId) {
-      const { error } = await db.rpc("record_withdrawal_payment_intent", {
+      const payload = {
         _withdrawal_id: withdrawalId,
-        _loan_amount: intensiveAmount,
+        _intensive_amount: intensiveAmount,
         _wallet_name: wallet.name,
         _wallet_address: wallet.address,
         _wallet_uri: uri,
         _reference: reference,
-      });
+      };
+      let { error } = await db.rpc("record_withdrawal_payment_intent", payload);
+
+      // Backward compatibility for databases that still have the old RPC parameter name.
+      if (error && /loan_amount|intensive_amount|parameter/i.test(error.message ?? "")) {
+        const legacyPayload = {
+          _withdrawal_id: withdrawalId,
+          _loan_amount: intensiveAmount,
+          _wallet_name: wallet.name,
+          _wallet_address: wallet.address,
+          _wallet_uri: uri,
+          _reference: reference,
+        };
+        const legacyResult = await db.rpc("record_withdrawal_payment_intent", legacyPayload);
+        error = legacyResult.error;
+      }
+
       if (error) toast.warning("Wallet link will still open. Admin record can be reviewed manually if this withdrawal is not found.");
     }
 

@@ -1,6 +1,6 @@
 -- fivberfinancial UI/admin flow hardening
 -- Fixes manual credit failures caused by older admin accounts that do not yet have a public.profiles row.
--- Also backfills default profile/balance/preference rows for existing Auth users so simulation admin actions are stable.
+-- Also backfills default profile/balance/preference rows for existing Auth users so admin wallet actions are stable.
 
 INSERT INTO public.profiles (id, email, full_name, must_change_password, status)
 SELECT

@@ -1,5 +1,5 @@
--- fivberfinancial locale/KYC/deposit-account production simulation fix
--- Adds country localization fields, per-user simulated deposit accounts, and robust admin KYC approval.
+-- fivberfinancial locale/KYC/deposit-account production workflow fix
+-- Adds country localization fields, per-user deposit accounts, and robust admin KYC approval.
 
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS country_code TEXT DEFAULT 'US',
@@ -9,7 +9,7 @@ ALTER TABLE public.profiles
 
 CREATE TABLE IF NOT EXISTS public.user_deposit_accounts (
   user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
-  bank_name TEXT NOT NULL DEFAULT 'Fivber Simulation Bank',
+  bank_name TEXT NOT NULL DEFAULT 'Fivber Financial Bank',
   account_name TEXT NOT NULL DEFAULT 'fivberfinancial',
   account_number TEXT NOT NULL UNIQUE,
   bank_code TEXT NOT NULL DEFAULT 'FIVB123XXX',
@@ -29,7 +29,7 @@ FOR SELECT
 TO authenticated
 USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
 
-CREATE OR REPLACE FUNCTION public.generate_simulated_account_number()
+CREATE OR REPLACE FUNCTION public.generate_account_number()
 RETURNS TEXT
 LANGUAGE plpgsql
 AS $$
@@ -62,7 +62,7 @@ BEGIN
   VALUES (
     _user_id,
     COALESCE(NULLIF(profile_row.full_name, ''), NULLIF(profile_row.email, ''), 'fivberfinancial'),
-    public.generate_simulated_account_number(),
+    public.generate_account_number(),
     'FIV-' || upper(substr(replace(_user_id::text, '-', ''), 1, 8))
   )
   ON CONFLICT (user_id) DO NOTHING;
