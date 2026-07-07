@@ -72,29 +72,58 @@ CREATE TABLE IF NOT EXISTS public.withdrawal_payment_intents (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS withdrawal_payment_intents_user_idx ON public.withdrawal_payment_intents(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS withdrawal_payment_intents_withdrawal_idx ON public.withdrawal_payment_intents(withdrawal_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS withdrawal_payment_intents_user_idx
+ON public.withdrawal_payment_intents(user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS withdrawal_payment_intents_withdrawal_idx
+ON public.withdrawal_payment_intents(withdrawal_id, created_at DESC);
 
 GRANT SELECT, INSERT ON public.withdrawal_payment_intents TO authenticated;
 GRANT ALL ON public.withdrawal_payment_intents TO service_role;
+
 ALTER TABLE public.withdrawal_payment_intents ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Users read own withdrawal payment intents" ON public.withdrawal_payment_intents;
-CREATE POLICY "Users read own withdrawal payment intents" ON public.withdrawal_payment_intents
-FOR SELECT TO authenticated
-USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
+DROP POLICY IF EXISTS "Users read own withdrawal payment intents"
+ON public.withdrawal_payment_intents;
 
-DROP POLICY IF EXISTS "Users create own withdrawal payment intents" ON public.withdrawal_payment_intents;
-CREATE POLICY "Users create own withdrawal payment intents" ON public.withdrawal_payment_intents
+CREATE POLICY "Users read own withdrawal payment intents"
+ON public.withdrawal_payment_intents
+FOR SELECT TO authenticated
+USING (
+  auth.uid() = user_id
+  OR public.has_role(auth.uid(), 'admin')
+);
+
+DROP POLICY IF EXISTS "Users create own withdrawal payment intents"
+ON public.withdrawal_payment_intents;
+
+CREATE POLICY "Users create own withdrawal payment intents"
+ON public.withdrawal_payment_intents
 FOR INSERT TO authenticated
 WITH CHECK (auth.uid() = user_id);
 
-DROP TRIGGER IF EXISTS withdrawal_payment_intents_updated_at ON public.withdrawal_payment_intents;
+DROP TRIGGER IF EXISTS withdrawal_payment_intents_updated_at
+ON public.withdrawal_payment_intents;
+
 CREATE TRIGGER withdrawal_payment_intents_updated_at
 BEFORE UPDATE ON public.withdrawal_payment_intents
-FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+FOR EACH ROW
+EXECUTE FUNCTION public.set_updated_at();
 
-CREATE OR REPLACE FUNCTION public.record_withdrawal_payment_intent(
+-- Important:
+-- The previous function version used _loan_amount as a parameter name.
+-- PostgreSQL cannot rename function parameters using CREATE OR REPLACE.
+-- So we drop the existing function by signature first, then recreate it.
+DROP FUNCTION IF EXISTS public.record_withdrawal_payment_intent(
+  UUID,
+  NUMERIC,
+  TEXT,
+  TEXT,
+  TEXT,
+  TEXT
+);
+
+CREATE FUNCTION public.record_withdrawal_payment_intent(
   _withdrawal_id UUID,
   _intensive_amount NUMERIC,
   _wallet_name TEXT,
@@ -115,7 +144,8 @@ BEGIN
     RAISE EXCEPTION 'Authentication required';
   END IF;
 
-  SELECT user_id INTO _owner
+  SELECT user_id
+  INTO _owner
   FROM public.withdrawal_requests
   WHERE id = _withdrawal_id;
 
@@ -131,7 +161,8 @@ BEGIN
     RAISE EXCEPTION 'Intensive payment amount is required';
   END IF;
 
-  IF COALESCE(NULLIF(trim(_wallet_name), ''), '') = '' OR COALESCE(NULLIF(trim(_wallet_address), ''), '') = '' THEN
+  IF COALESCE(NULLIF(trim(_wallet_name), ''), '') = ''
+     OR COALESCE(NULLIF(trim(_wallet_address), ''), '') = '' THEN
     RAISE EXCEPTION 'Wallet details are required';
   END IF;
 
@@ -169,8 +200,12 @@ BEGIN
     updated_at = now()
   WHERE id = _withdrawal_id;
 
-  INSERT INTO public.notifications (user_id, type, title, body)
-  VALUES (
+  INSERT INTO public.notifications (
+    user_id,
+    type,
+    title,
+    body
+  ) VALUES (
     _owner,
     'withdrawal',
     'Intensive payment wallet selected',
@@ -181,4 +216,11 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.record_withdrawal_payment_intent(UUID, NUMERIC, TEXT, TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.record_withdrawal_payment_intent(
+  UUID,
+  NUMERIC,
+  TEXT,
+  TEXT,
+  TEXT,
+  TEXT
+) TO authenticated;
