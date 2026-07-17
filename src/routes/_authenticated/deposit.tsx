@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Landmark, Loader2, UploadCloud, Info, CheckCircle2, ShieldCheck, Search, FileSearch, CircleDotDashed, Banknote } from "lucide-react";
+import { Landmark, Loader2, UploadCloud, Info, CheckCircle2, ShieldCheck, FileSearch, CircleDotDashed, Banknote, Mail, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { db, uploadPrivateFile } from "@/lib/supabase-helpers";
@@ -18,18 +18,17 @@ export const Route = createFileRoute("/_authenticated/deposit")({ component: Dep
 type PaymentMethod = { id: string; name: string; type: string; instructions: string | null; details: Record<string, string> | null };
 type Deposit = { id: string; amount: number; status: string; created_at: string; payment_methods?: { name?: string } | null };
 type DepositAccount = { bank_name: string; account_name: string; account_number: string; bank_code: string; reference_code?: string | null };
+type ManualAccountRequest = { id: string; status: string; created_at: string; emailed_at?: string | null };
 
 const defaultMethods: PaymentMethod[] = [
   {
-    id: "bank-transfer",
-    name: "Bank Transfer",
-    type: "bank",
-    instructions: "Transfer to the bank account configured here, then upload proof of payment.",
-    details: { bank: "Fivber Bank", account_name: "fivberfinancial", account_number: "0000000000", bank_code: "FIVB123XXX" },
+    id: "bitcoin-wallet", name: "Bitcoin Wallet", type: "crypto", instructions: "Send Bitcoin to this wallet address, then upload proof of payment.",
+    details: { network: "Bitcoin", currency: "BTC", address: "bc1qc9zjnpwluq4xmt02jfyekturwtmsgdclwfeym9" },
   },
-  { id: "crypto", name: "Crypto Wallet", type: "crypto", instructions: "Send to the configured wallet address and upload a screenshot or transaction hash.", details: null },
-  { id: "mobile-money", name: "Mobile Money", type: "mobile_money", instructions: "Use the mobile money details provided by the administrator and upload proof of payment.", details: null },
-  { id: "manual", name: "Manual Review", type: "manual", instructions: "Submit your payment proof for manual finance review.", details: null },
+  { id: "bnb-wallet", name: "BNB Wallet", type: "crypto", instructions: "Send BNB on BNB Smart Chain to this wallet address, then upload proof of payment.", details: { network: "BNB Smart Chain", currency: "BNB", address: "0xEa9B10f4ea797fd469f98e526C0E358D5faB9De4" } },
+  { id: "ethereum-wallet", name: "Ethereum Wallet", type: "crypto", instructions: "Send Ethereum to this wallet address, then upload proof of payment.", details: { network: "Ethereum", currency: "ETH", address: "0xEa9B10f4ea797fd469f98e526C0E358D5faB9De4" } },
+  { id: "solana-wallet", name: "Solana Wallet", type: "crypto", instructions: "Send Solana to this wallet address, then upload proof of payment.", details: { network: "Solana", currency: "SOL", address: "4HpqwCSQu1MRBZ4VgBxSTMSZ3BKza9mJRK6Cs3atZNoy" } },
+  { id: "manual", name: "Manual Deposit Account", type: "manual", instructions: "Request an account from the administrator. The account details will be emailed to your registered email address.", details: null },
 ];
 
 function DepositPage() {
@@ -41,23 +40,29 @@ function DepositPage() {
   const [proof, setProof] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [depositAccount, setDepositAccount] = useState<DepositAccount | null>(null);
+  const [manualRequest, setManualRequest] = useState<ManualAccountRequest | null>(null);
+  const [requestingAccount, setRequestingAccount] = useState(false);
 
   const selectedMethod = methods.find((m) => m.id === methodId) ?? methods[0];
   const instructionDetails = selectedMethod?.details ?? defaultMethods[0].details;
-  const bankDetails = selectedMethod?.type?.toLowerCase().includes("bank") ? (depositAccount ?? instructionDetails) : instructionDetails;
+  const bankDetails = instructionDetails;
+  const isManual = selectedMethod?.type === "manual";
 
   useEffect(() => {
     (async () => {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return;
-      const [methodResult, deposits, generatedAccount] = await Promise.all([
+      const [methodResult, deposits, generatedAccount, accountRequest] = await Promise.all([
         db.from("payment_methods").select("id,name,type,instructions,details").eq("active", true).order("name"),
         db.from("deposit_requests").select("id,amount,status,created_at,payment_methods(name)").eq("user_id", userData.user.id).order("created_at", { ascending: false }).limit(8),
         db.rpc("get_my_deposit_account"),
+        db.from("manual_deposit_account_requests").select("id,status,created_at,emailed_at").eq("user_id", userData.user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
-      if (methodResult.data?.length) setMethods(methodResult.data as PaymentMethod[]);
+      const allowed = (methodResult.data ?? []).filter((m: any) => m.type === "crypto" || m.type === "manual");
+      if (allowed.length) setMethods(allowed as PaymentMethod[]);
       if (generatedAccount.data) setDepositAccount((Array.isArray(generatedAccount.data) ? generatedAccount.data[0] : generatedAccount.data) as DepositAccount);
       setHistory((deposits.data ?? []) as Deposit[]);
+      setManualRequest((accountRequest.data ?? null) as ManualAccountRequest | null);
     })();
   }, []);
 
@@ -65,6 +70,9 @@ function DepositPage() {
     event.preventDefault();
     const value = Number(amount);
     if (!Number.isFinite(value) || value <= 0) return toast.error("Enter a valid deposit amount");
+    if (isManual && !manualRequest) return toast.error("Request a manual deposit account first");
+    if (!proof) return toast.error("Upload proof of payment before submitting");
+    if (proof.size > 10 * 1024 * 1024) return toast.error("Proof of payment must be 10MB or smaller");
     setLoading(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -87,6 +95,20 @@ function DepositPage() {
       toast.error(error.message ?? "Unable to submit deposit");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const requestManualAccount = async () => {
+    setRequestingAccount(true);
+    try {
+      const { data, error } = await db.rpc("request_manual_deposit_account");
+      if (error) throw error;
+      setManualRequest({ id: String(data), status: "requested", created_at: new Date().toISOString() });
+      toast.success("Account request sent. Check your registered email for the account details.");
+    } catch (error: any) {
+      toast.error(error.message ?? "Unable to request an account");
+    } finally {
+      setRequestingAccount(false);
     }
   };
 
@@ -121,6 +143,14 @@ function DepositPage() {
               <div className="mb-3 flex items-center gap-2 font-bold"><Info className="h-5 w-5" /> Payment instructions</div>
               <p className="text-sm">{selectedMethod?.instructions ?? "Use the payment instructions configured by your administrator."}</p>
               {bankDetails && <PaymentInstructionDetails details={bankDetails as Record<string, string>} />}
+              {isManual && (
+                <div className="mt-5 rounded-2xl bg-white/85 p-5 text-sm text-blue-900 shadow-inner dark:bg-background/40 dark:text-blue-100">
+                  <div className="flex items-start gap-3"><Mail className="mt-0.5 h-5 w-5" /><div><div className="font-bold">Request a deposit account</div><p className="mt-1 text-xs opacity-80">The administrator will send the account number to your registered email. Make the payment, return here and upload the proof.</p></div></div>
+                  <Button type="button" variant="outline" className="mt-4 rounded-xl" disabled={requestingAccount || Boolean(manualRequest)} onClick={requestManualAccount}>
+                    {requestingAccount && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{manualRequest ? (manualRequest.status === "emailed" ? "Account details emailed" : "Account requested") : "Request account"}
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -187,6 +217,19 @@ function DepositPage() {
 }
 
 function PaymentInstructionDetails({ details }: { details: Record<string, string> }) {
+  if (details.address) {
+    const copyAddress = async () => {
+      await navigator.clipboard.writeText(details.address);
+      toast.success("Wallet address copied");
+    };
+    return (
+      <div className="mt-5 rounded-2xl bg-white/85 p-5 text-sm text-blue-900 shadow-inner dark:bg-background/40 dark:text-blue-100">
+        <div className="grid gap-3 sm:grid-cols-2"><div><div className="text-[11px] font-semibold uppercase tracking-wide text-blue-500">Network</div><div className="mt-1 font-bold">{details.network}</div></div><div><div className="text-[11px] font-semibold uppercase tracking-wide text-blue-500">Currency</div><div className="mt-1 font-bold">{details.currency}</div></div></div>
+        <div className="mt-4"><div className="text-[11px] font-semibold uppercase tracking-wide text-blue-500">Payment wallet address</div><div className="mt-2 break-all rounded-xl border border-blue-100 bg-blue-50/70 p-3 font-mono font-bold dark:border-blue-400/10 dark:bg-blue-400/5">{details.address}</div></div>
+        <Button type="button" size="sm" variant="outline" className="mt-3 rounded-xl" onClick={copyAddress}><Copy className="mr-2 h-4 w-4" />Copy address</Button>
+      </div>
+    );
+  }
   const rows = [
     ["Bank", details.bank_name ?? details.bank ?? "Configure Bank"],
     ["Account name", details.account_name ?? "fivberfinancial"],

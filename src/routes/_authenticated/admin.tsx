@@ -56,6 +56,7 @@ type Profile = { id: string; full_name: string | null; email: string | null; pho
 type Balance = { user_id: string; available: number; invested: number; total_profit: number };
 type Kyc = { id: string; user_id: string; status: string; proof_of_address: string | null; document_urls: Record<string, string> | null; admin_notes: string | null; submitted_at: string; user_full_name?: string | null; user_email?: string | null; profiles?: { full_name?: string | null; email?: string | null } | null };
 type Deposit = { id: string; user_id: string; amount: number; status: string; notes: string | null; proof_url: string | null; created_at: string; reviewed_at?: string | null; admin_notes?: string | null; user_full_name?: string | null; user_email?: string | null; payment_method_name?: string | null; profiles?: { full_name?: string | null; email?: string | null } | null; payment_methods?: { name?: string | null } | null };
+type ManualAccountRequest = { id: string; user_id: string; user_full_name: string | null; user_email: string | null; status: string; created_at: string; emailed_at: string | null };
 type Withdrawal = { id: string; user_id: string; amount: number; method: string; status: string; destination_account: Record<string, any> | null; admin_notes: string | null; created_at: string; processed_at?: string | null; user_full_name?: string | null; user_email?: string | null; intensive_payment_amount?: number | null; loan_interest_amount?: number | null; total_obligation?: number | null; profiles?: { full_name?: string | null; email?: string | null } | null };
 type Plan = { id: string; name: string; min_amount: number; max_amount: number | null; daily_roi_percent: number; duration_days: number; active: boolean; description: string | null };
 type Tx = { id: string; user_id: string; type: string; amount: number; status: string; reference: string | null; description: string | null; created_at: string; profiles?: { full_name?: string | null; email?: string | null } | null };
@@ -73,6 +74,7 @@ function AdminPage() {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [kyc, setKyc] = useState<Kyc[]>([]);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const [manualAccountRequests, setManualAccountRequests] = useState<ManualAccountRequest[]>([]);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [transactions, setTransactions] = useState<Tx[]>([]);
@@ -123,7 +125,7 @@ function AdminPage() {
 
   const load = async () => {
     setLoading(true);
-    const [profileRows, balanceRows, kycRows, depositRows, withdrawalRows, planRows, txRows, auditRows] = await Promise.all([
+    const [profileRows, balanceRows, kycRows, depositRows, withdrawalRows, planRows, txRows, auditRows, manualRequestRows] = await Promise.all([
       supabase.from("profiles").select("id,full_name,email,phone,status,created_at").order("created_at", { ascending: false }).limit(500),
       supabase.from("balances").select("user_id,available,invested,total_profit"),
       db.rpc("admin_list_kyc_submissions"),
@@ -132,6 +134,7 @@ function AdminPage() {
       db.from("investment_plans").select("id,name,min_amount,max_amount,daily_roi_percent,duration_days,active,description").order("min_amount"),
       db.from("transactions").select("id,user_id,type,amount,status,reference,description,created_at,profiles(full_name,email)").order("created_at", { ascending: false }).limit(200),
       db.from("admin_audit_logs").select("id,admin_id,action,entity_type,entity_id,metadata,created_at,profiles(full_name,email)").order("created_at", { ascending: false }).limit(100),
+      db.rpc("admin_list_manual_deposit_account_requests"),
     ]);
     let kycData = (kycRows.data ?? []) as any[];
     if (kycRows.error) {
@@ -165,6 +168,7 @@ function AdminPage() {
       profiles: row.profiles ?? { full_name: row.user_full_name ?? null, email: row.user_email ?? null },
       payment_methods: row.payment_methods ?? { name: row.payment_method_name ?? null },
     })) as Deposit[]);
+    setManualAccountRequests((manualRequestRows.data ?? []) as ManualAccountRequest[]);
     setWithdrawals(withdrawalData.map((row) => ({
       ...row,
       profiles: row.profiles ?? { full_name: row.user_full_name ?? null, email: row.user_email ?? null },
@@ -310,6 +314,18 @@ function AdminPage() {
     toast.success(approve ? "Deposit approved and user credited" : "Deposit rejected");
   });
 
+  const emailManualAccount = (request: ManualAccountRequest) => {
+    if (!request.user_email) return toast.error("This user has no registered email address");
+    const subject = encodeURIComponent("Your fivberfinancial deposit account details");
+    const body = encodeURIComponent(`Hello ${request.user_full_name ?? "Customer"},\n\nHere are your manual deposit account details:\n\nBank name: \nAccount name: \nAccount number: \nPayment reference: \n\nAfter making payment, return to the Deposit page and upload your proof of payment for administrator approval.\n\nRegards,\nfivberfinancial`);
+    window.location.href = `mailto:${request.user_email}?subject=${subject}&body=${body}`;
+    runAction(`manual-account-${request.id}`, async () => {
+      const { error } = await db.rpc("admin_mark_manual_account_emailed", { _request_id: request.id });
+      if (error) throw error;
+      toast.success("Email draft opened and request marked as emailed");
+    });
+  };
+
   const updateWithdrawal = (withdrawal: Withdrawal, status: string) => runAction(`withdraw-${withdrawal.id}-${status}`, async () => {
     const { error } = await db.rpc("admin_update_withdrawal", {
       _withdrawal_id: withdrawal.id,
@@ -345,6 +361,13 @@ function AdminPage() {
     <span key={`${d.id}-date`} className="whitespace-nowrap text-muted-foreground">{new Date(d.created_at).toLocaleDateString()}</span>,
     <Badge key={`${d.id}-badge`} variant="outline" className={statusClass(d.status)}>{d.status}</Badge>,
     <div key={`${d.id}-actions`} className="flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={d.status !== "pending" || actionLoading === `deposit-approve-${d.id}`} onClick={() => approveDeposit(d, true)}>{actionLoading === `deposit-approve-${d.id}` && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}Approve</Button><Button size="sm" variant="outline" disabled={d.status !== "pending" || actionLoading === `deposit-reject-${d.id}`} onClick={() => approveDeposit(d, false)}>Reject</Button></div>,
+  ]);
+
+  const manualAccountRequestRows = manualAccountRequests.map((r) => [
+    <div key={`${r.id}-user`}><div className="font-medium">{r.user_full_name ?? "User"}</div><div className="text-xs text-muted-foreground">{r.user_email ?? "No email"}</div></div>,
+    <span key={`${r.id}-date`} className="whitespace-nowrap text-muted-foreground">{new Date(r.created_at).toLocaleString()}</span>,
+    <Badge key={`${r.id}-status`} variant="outline" className={statusClass(r.status)}>{r.status}</Badge>,
+    <Button key={`${r.id}-email`} size="sm" variant="outline" disabled={!r.user_email || actionLoading === `manual-account-${r.id}`} onClick={() => emailManualAccount(r)}>{actionLoading === `manual-account-${r.id}` && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}Email account details</Button>,
   ]);
 
   const withdrawalReviewRows = withdrawals.map((w) => [
@@ -542,7 +565,8 @@ function AdminPage() {
           </TabsContent>
 
           <TabsContent value="deposits" className="space-y-6">
-            <Card className="rounded-3xl border-blue-200 bg-blue-50/40 p-5 text-blue-800 shadow-soft dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200"><b>Funding note:</b> You can keep deposit requests for review, but the recommended admin funding flow is manual wallet credit.</Card>
+            <Card className="rounded-3xl border-blue-200 bg-blue-50/40 p-5 text-blue-800 shadow-soft dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200"><b>Manual deposit account requests:</b> Open an email draft, enter the approved bank account details, and send it to the user. The user will then upload proof for approval.</Card>
+            <DataTable headers={["User", "Requested", "Status", "Action"]} rows={manualAccountRequestRows} empty="No manual account requests." />
             <DataTable headers={["User", "Amount", "Method", "Proof", "Submitted", "Status", "Actions"]} rows={depositReviewRows} empty="No deposit requests." />
           </TabsContent>
 
