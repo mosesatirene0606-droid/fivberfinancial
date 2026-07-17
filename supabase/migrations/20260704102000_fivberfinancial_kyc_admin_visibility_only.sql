@@ -40,9 +40,7 @@ BEGIN
   ORDER BY k.submitted_at DESC;
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.admin_list_kyc_submissions() TO authenticated;
-
 DROP POLICY IF EXISTS "Admins read all kyc documents" ON storage.objects;
 CREATE POLICY "Admins read all kyc documents"
 ON storage.objects

@@ -7,7 +7,6 @@ CREATE TYPE public.withdrawal_status AS ENUM ('pending', 'processing', 'approved
 CREATE TYPE public.investment_status AS ENUM ('active', 'completed', 'expired', 'cancelled');
 CREATE TYPE public.transaction_type AS ENUM ('deposit', 'investment', 'daily_profit', 'withdrawal', 'bonus', 'adjustment', 'fee');
 CREATE TYPE public.transaction_status AS ENUM ('pending', 'processing', 'approved', 'rejected', 'completed', 'paid');
-
 -- PAYMENT METHODS
 CREATE TABLE public.payment_methods (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -25,7 +24,6 @@ ALTER TABLE public.payment_methods ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read active payment methods" ON public.payment_methods FOR SELECT TO authenticated USING (active OR public.has_role(auth.uid(), 'admin'));
 CREATE POLICY "Admins manage payment methods" ON public.payment_methods FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
 CREATE TRIGGER payment_methods_updated_at BEFORE UPDATE ON public.payment_methods FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 -- INVESTMENT PLANS
 CREATE TABLE public.investment_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -46,7 +44,6 @@ ALTER TABLE public.investment_plans ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read active plans" ON public.investment_plans FOR SELECT TO authenticated USING (active OR public.has_role(auth.uid(), 'admin'));
 CREATE POLICY "Admins manage plans" ON public.investment_plans FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
 CREATE TRIGGER investment_plans_updated_at BEFORE UPDATE ON public.investment_plans FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 -- KYC
 CREATE TABLE public.kyc_submissions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -70,7 +67,6 @@ CREATE POLICY "Users read own kyc" ON public.kyc_submissions FOR SELECT TO authe
 CREATE POLICY "Users submit own kyc" ON public.kyc_submissions FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Admins update kyc" ON public.kyc_submissions FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
 CREATE TRIGGER kyc_submissions_updated_at BEFORE UPDATE ON public.kyc_submissions FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 -- USER INVESTMENTS
 CREATE TABLE public.user_investments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -96,7 +92,6 @@ ALTER TABLE public.user_investments ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own investments" ON public.user_investments FOR SELECT TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
 CREATE POLICY "Admins update investments" ON public.user_investments FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
 CREATE TRIGGER user_investments_updated_at BEFORE UPDATE ON public.user_investments FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 -- DEPOSITS
 CREATE TABLE public.deposit_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -120,7 +115,6 @@ ALTER TABLE public.deposit_requests ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own deposits" ON public.deposit_requests FOR SELECT TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
 CREATE POLICY "Admins update deposits" ON public.deposit_requests FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
 CREATE TRIGGER deposit_requests_updated_at BEFORE UPDATE ON public.deposit_requests FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 -- WITHDRAWALS
 CREATE TABLE public.withdrawal_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -143,7 +137,6 @@ ALTER TABLE public.withdrawal_requests ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own withdrawals" ON public.withdrawal_requests FOR SELECT TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
 CREATE POLICY "Admins update withdrawals" ON public.withdrawal_requests FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
 CREATE TRIGGER withdrawal_requests_updated_at BEFORE UPDATE ON public.withdrawal_requests FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 -- TRANSACTIONS
 CREATE TABLE public.transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -162,7 +155,6 @@ GRANT SELECT ON public.transactions TO authenticated;
 GRANT ALL ON public.transactions TO service_role;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own transactions" ON public.transactions FOR SELECT TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
 -- AUDIT LOGS
 CREATE TABLE public.admin_audit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -177,7 +169,6 @@ GRANT SELECT ON public.admin_audit_logs TO authenticated;
 GRANT ALL ON public.admin_audit_logs TO service_role;
 ALTER TABLE public.admin_audit_logs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admins read audit logs" ON public.admin_audit_logs FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
-
 -- CMS AND SETTINGS
 CREATE TABLE public.cms_pages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -213,7 +204,6 @@ CREATE POLICY "Public read settings" ON public.site_settings FOR SELECT USING (t
 CREATE POLICY "Admins manage pages" ON public.cms_pages FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
 CREATE POLICY "Admins manage announcements" ON public.announcements FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
 CREATE POLICY "Admins manage settings" ON public.site_settings FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
-
 -- STORAGE BUCKETS
 INSERT INTO storage.buckets (id, name, public) VALUES ('kyc-documents', 'kyc-documents', false) ON CONFLICT (id) DO NOTHING;
 INSERT INTO storage.buckets (id, name, public) VALUES ('deposit-proofs', 'deposit-proofs', false) ON CONFLICT (id) DO NOTHING;
@@ -221,7 +211,6 @@ CREATE POLICY "Users upload own kyc documents" ON storage.objects FOR INSERT TO 
 CREATE POLICY "Users read own kyc documents" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'kyc-documents' AND ((storage.foldername(name))[1] = auth.uid()::text OR public.has_role(auth.uid(), 'admin')));
 CREATE POLICY "Users upload own deposit proofs" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'deposit-proofs' AND (storage.foldername(name))[1] = auth.uid()::text);
 CREATE POLICY "Users read own deposit proofs" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'deposit-proofs' AND ((storage.foldername(name))[1] = auth.uid()::text OR public.has_role(auth.uid(), 'admin')));
-
 -- HELPERS
 CREATE OR REPLACE FUNCTION public.assert_admin()
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -231,7 +220,6 @@ BEGIN
   END IF;
 END;
 $$;
-
 CREATE OR REPLACE FUNCTION public.is_kyc_approved(_user_id UUID)
 RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT EXISTS (
@@ -241,7 +229,6 @@ RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
     LIMIT 1
   );
 $$;
-
 CREATE OR REPLACE FUNCTION public.audit(_action TEXT, _entity_type TEXT, _entity_id UUID, _metadata JSONB DEFAULT '{}'::jsonb)
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
@@ -249,7 +236,6 @@ BEGIN
   VALUES (auth.uid(), _action, _entity_type, _entity_id, COALESCE(_metadata, '{}'::jsonb));
 END;
 $$;
-
 CREATE OR REPLACE FUNCTION public.create_deposit(_amount NUMERIC, _payment_method_id UUID DEFAULT NULL, _proof_url TEXT DEFAULT NULL, _notes TEXT DEFAULT NULL)
 RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -267,7 +253,6 @@ BEGIN
   RETURN _id;
 END;
 $$;
-
 CREATE OR REPLACE FUNCTION public.approve_deposit(_deposit_id UUID, _approve BOOLEAN, _admin_notes TEXT DEFAULT NULL)
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -292,7 +277,6 @@ BEGIN
   END IF;
 END;
 $$;
-
 CREATE OR REPLACE FUNCTION public.review_kyc(_kyc_id UUID, _status public.kyc_status, _admin_notes TEXT DEFAULT NULL)
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -307,7 +291,6 @@ BEGIN
   PERFORM public.audit('kyc.reviewed', 'kyc_submissions', _kyc_id, jsonb_build_object('status', _status));
 END;
 $$;
-
 CREATE OR REPLACE FUNCTION public.create_investment(_plan_id UUID, _amount NUMERIC)
 RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -336,7 +319,6 @@ BEGIN
   RETURN _id;
 END;
 $$;
-
 CREATE OR REPLACE FUNCTION public.create_withdrawal(_amount NUMERIC, _method TEXT, _destination_account JSONB)
 RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -359,7 +341,6 @@ BEGIN
   RETURN _id;
 END;
 $$;
-
 CREATE OR REPLACE FUNCTION public.admin_update_withdrawal(_withdrawal_id UUID, _status public.withdrawal_status, _admin_notes TEXT DEFAULT NULL)
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -386,7 +367,6 @@ BEGIN
   PERFORM public.audit('withdrawal.' || _status, 'withdrawal_requests', _withdrawal_id, jsonb_build_object('amount', w.amount));
 END;
 $$;
-
 CREATE OR REPLACE FUNCTION public.credit_daily_profit()
 RETURNS INTEGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -414,33 +394,28 @@ BEGIN
   RETURN count_credited;
 END;
 $$;
-
 -- SEED DATA
 INSERT INTO public.payment_methods (name, type, instructions, details) VALUES
   ('Bank Transfer', 'bank', 'Transfer to the bank account configured here, then upload proof of payment.', '{"account_name":"fivberfinancial","account_number":"0000000000","bank":"Configure Bank"}'::jsonb),
   ('Cryptocurrency', 'crypto', 'Send to the configured wallet and submit the transaction hash or screenshot.', '{"network":"USDT TRC20","wallet":"Configure wallet address"}'::jsonb),
   ('Mobile Money', 'mobile_money', 'Use the mobile money details configured by the administrator.', '{"provider":"Configure provider","number":"Configure number"}'::jsonb)
 ON CONFLICT (name) DO NOTHING;
-
 INSERT INTO public.investment_plans (name, description, min_amount, max_amount, daily_roi_percent, duration_days, active) VALUES
   ('Starter', 'Entry plan for verified investors.', 100, 1000, 1.2, 30, true),
   ('Silver', 'Balanced plan for steady portfolio growth.', 1000, 5000, 1.8, 45, true),
   ('Gold', 'Higher-cap plan for experienced investors.', 5000, 20000, 2.5, 60, true),
   ('VIP', 'Premium uncapped brokerage plan.', 20000, NULL, 3.2, 90, true)
 ON CONFLICT (name) DO NOTHING;
-
 INSERT INTO public.site_settings (key, value) VALUES
   ('brand', '{"site_name":"fivberfinancial","currency":"USD","timezone":"UTC","theme":"white-blue-emerald"}'::jsonb),
   ('security', '{"admin_only_user_creation":true,"kyc_required_for_investment":true,"kyc_required_for_withdrawal":true,"two_factor_optional":true}'::jsonb)
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
-
 INSERT INTO public.cms_pages (slug, title, body) VALUES
   ('about', 'About fivberfinancial', 'Premium investment and brokerage services with verification-first access.'),
   ('faq', 'Frequently Asked Questions', 'Administrators can edit this page from CMS settings.'),
   ('terms', 'Terms of Service', 'Update these terms before launch.'),
   ('privacy', 'Privacy Policy', 'Update this policy before launch.')
 ON CONFLICT (slug) DO NOTHING;
-
 CREATE OR REPLACE FUNCTION public.admin_adjust_balance(_user_id UUID, _amount NUMERIC, _direction TEXT, _transaction_type public.transaction_type DEFAULT 'adjustment', _description TEXT DEFAULT NULL)
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE

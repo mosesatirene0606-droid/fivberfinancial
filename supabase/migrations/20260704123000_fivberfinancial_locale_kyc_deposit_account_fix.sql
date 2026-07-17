@@ -1,15 +1,14 @@
--- fivberfinancial locale/KYC/deposit-account production workflow fix
--- Adds country localization fields, per-user deposit accounts, and robust admin KYC approval.
+-- fivberfinancial locale/KYC/deposit-account production simulation fix
+-- Adds country localization fields, per-user simulated deposit accounts, and robust admin KYC approval.
 
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS country_code TEXT DEFAULT 'US',
   ADD COLUMN IF NOT EXISTS country_name TEXT DEFAULT 'United States',
   ADD COLUMN IF NOT EXISTS locale TEXT DEFAULT 'en-US',
   ADD COLUMN IF NOT EXISTS phone_country_code TEXT DEFAULT '+1';
-
 CREATE TABLE IF NOT EXISTS public.user_deposit_accounts (
   user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
-  bank_name TEXT NOT NULL DEFAULT 'Fivber Financial Bank',
+  bank_name TEXT NOT NULL DEFAULT 'Fivber Simulation Bank',
   account_name TEXT NOT NULL DEFAULT 'fivberfinancial',
   account_number TEXT NOT NULL UNIQUE,
   bank_code TEXT NOT NULL DEFAULT 'FIVB123XXX',
@@ -17,19 +16,16 @@ CREATE TABLE IF NOT EXISTS public.user_deposit_accounts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
 GRANT SELECT ON public.user_deposit_accounts TO authenticated;
 GRANT ALL ON public.user_deposit_accounts TO service_role;
 ALTER TABLE public.user_deposit_accounts ENABLE ROW LEVEL SECURITY;
-
 DROP POLICY IF EXISTS "Users read own deposit account" ON public.user_deposit_accounts;
 CREATE POLICY "Users read own deposit account"
 ON public.user_deposit_accounts
 FOR SELECT
 TO authenticated
 USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE OR REPLACE FUNCTION public.generate_account_number()
+CREATE OR REPLACE FUNCTION public.generate_simulated_account_number()
 RETURNS TEXT
 LANGUAGE plpgsql
 AS $$
@@ -43,7 +39,6 @@ BEGIN
   RETURN candidate;
 END;
 $$;
-
 CREATE OR REPLACE FUNCTION public.ensure_user_deposit_account(_user_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -62,13 +57,12 @@ BEGIN
   VALUES (
     _user_id,
     COALESCE(NULLIF(profile_row.full_name, ''), NULLIF(profile_row.email, ''), 'fivberfinancial'),
-    public.generate_account_number(),
+    public.generate_simulated_account_number(),
     'FIV-' || upper(substr(replace(_user_id::text, '-', ''), 1, 8))
   )
   ON CONFLICT (user_id) DO NOTHING;
 END;
 $$;
-
 CREATE OR REPLACE FUNCTION public.create_profile_deposit_account()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -80,14 +74,11 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-
 DROP TRIGGER IF EXISTS on_profile_deposit_account ON public.profiles;
 CREATE TRIGGER on_profile_deposit_account
 AFTER INSERT ON public.profiles
 FOR EACH ROW EXECUTE FUNCTION public.create_profile_deposit_account();
-
 SELECT public.ensure_user_deposit_account(id) FROM public.profiles;
-
 CREATE OR REPLACE FUNCTION public.get_my_deposit_account()
 RETURNS TABLE (
   bank_name TEXT,
@@ -113,9 +104,7 @@ BEGIN
   WHERE uda.user_id = auth.uid();
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.get_my_deposit_account() TO authenticated;
-
 CREATE OR REPLACE FUNCTION public.admin_list_kyc_submissions()
 RETURNS TABLE (
   id UUID,
@@ -156,9 +145,7 @@ BEGIN
   ORDER BY k.submitted_at DESC;
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.admin_list_kyc_submissions() TO authenticated;
-
 CREATE OR REPLACE FUNCTION public.review_kyc(_kyc_id UUID, _status public.kyc_status, _admin_notes TEXT DEFAULT NULL)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -202,9 +189,7 @@ BEGIN
   PERFORM public.audit('kyc.reviewed', 'kyc_submissions', _kyc_id, jsonb_build_object('status', _status));
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.review_kyc(UUID, public.kyc_status, TEXT) TO authenticated;
-
 DROP POLICY IF EXISTS "Admins read all kyc documents" ON storage.objects;
 CREATE POLICY "Admins read all kyc documents"
 ON storage.objects

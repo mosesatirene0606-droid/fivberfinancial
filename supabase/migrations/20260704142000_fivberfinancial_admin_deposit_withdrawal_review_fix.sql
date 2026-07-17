@@ -1,4 +1,4 @@
--- fivberfinancial admin deposit/withdrawal review visibility + admin review flow fix
+-- fivberfinancial admin deposit/withdrawal review visibility + simulation flow fix
 -- Adds admin-only RPC list functions for deposits/withdrawals, and hardens approval/update functions.
 
 CREATE OR REPLACE FUNCTION public.admin_list_deposit_requests()
@@ -45,9 +45,7 @@ BEGIN
   ORDER BY d.created_at DESC;
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.admin_list_deposit_requests() TO authenticated;
-
 CREATE OR REPLACE FUNCTION public.admin_list_withdrawal_requests()
 RETURNS TABLE (
   id UUID,
@@ -62,7 +60,7 @@ RETURNS TABLE (
   created_at TIMESTAMPTZ,
   processed_at TIMESTAMPTZ,
   processed_by UUID,
-  intensive_payment_amount NUMERIC,
+  loan_interest_amount NUMERIC,
   total_obligation NUMERIC
 )
 LANGUAGE plpgsql
@@ -86,23 +84,20 @@ BEGIN
     w.created_at,
     w.processed_at,
     w.processed_by,
-    COALESCE(NULLIF(w.destination_account->>'intensive_payment_amount', '')::numeric, NULLIF(w.destination_account->>'loan_interest_amount', '')::numeric, round(w.amount * 0.30, 2)) AS intensive_payment_amount,
-    COALESCE(NULLIF(w.destination_account->>'total_intensive_obligation', '')::numeric, NULLIF(w.destination_account->>'total_loan_obligation', '')::numeric, round(w.amount * 1.30, 2)) AS total_obligation
+    COALESCE(NULLIF(w.destination_account->>'loan_interest_amount', '')::numeric, round(w.amount * 0.30, 2)) AS loan_interest_amount,
+    COALESCE(NULLIF(w.destination_account->>'total_loan_obligation', '')::numeric, round(w.amount * 1.30, 2)) AS total_obligation
   FROM public.withdrawal_requests w
   LEFT JOIN public.profiles p ON p.id = w.user_id
   ORDER BY w.created_at DESC;
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.admin_list_withdrawal_requests() TO authenticated;
-
 DROP POLICY IF EXISTS "Admins read all deposit proofs" ON storage.objects;
 CREATE POLICY "Admins read all deposit proofs"
 ON storage.objects
 FOR SELECT
 TO authenticated
 USING (bucket_id = 'deposit-proofs' AND public.has_role(auth.uid(), 'admin'));
-
 CREATE OR REPLACE FUNCTION public.approve_deposit(_deposit_id UUID, _approve BOOLEAN, _admin_notes TEXT DEFAULT NULL)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -165,9 +160,7 @@ BEGIN
   END IF;
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.approve_deposit(UUID, BOOLEAN, TEXT) TO authenticated;
-
 CREATE OR REPLACE FUNCTION public.admin_update_withdrawal(_withdrawal_id UUID, _status public.withdrawal_status, _admin_notes TEXT DEFAULT NULL)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -233,5 +226,4 @@ BEGIN
   PERFORM public.audit('withdrawal.' || _status, 'withdrawal_requests', _withdrawal_id, jsonb_build_object('amount', w.amount, 'status', _status));
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.admin_update_withdrawal(UUID, public.withdrawal_status, TEXT) TO authenticated;

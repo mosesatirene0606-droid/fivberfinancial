@@ -41,16 +41,13 @@ BEGIN
   ORDER BY k.submitted_at DESC;
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.admin_list_kyc_submissions() TO authenticated;
-
 DROP POLICY IF EXISTS "Admins read all kyc documents" ON storage.objects;
 CREATE POLICY "Admins read all kyc documents"
 ON storage.objects
 FOR SELECT
 TO authenticated
 USING (bucket_id = 'kyc-documents' AND public.has_role(auth.uid(), 'admin'));
-
 CREATE OR REPLACE FUNCTION public.create_withdrawal(_amount NUMERIC, _method TEXT, _destination_account JSONB)
 RETURNS UUID
 LANGUAGE plpgsql
@@ -111,5 +108,4 @@ BEGIN
   RETURN _id;
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.create_withdrawal(NUMERIC, TEXT, JSONB) TO authenticated;

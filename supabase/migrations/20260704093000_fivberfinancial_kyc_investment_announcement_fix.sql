@@ -1,14 +1,12 @@
--- fivberfinancial admin workflow fixes
--- 1. Allows admin-created user investments for admin-managed mode.
+-- fivberfinancial simulation workflow fixes
+-- 1. Allows admin-created user investments for simulation mode.
 -- 2. Allows announcements to be sent either globally or to a single user.
 -- 3. Keeps KYC document metadata visible to admins through existing kyc_submissions.document_urls.
 
 ALTER TABLE public.announcements
   ADD COLUMN IF NOT EXISTS audience TEXT NOT NULL DEFAULT 'general',
   ADD COLUMN IF NOT EXISTS target_user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
-
 CREATE INDEX IF NOT EXISTS announcements_target_user_idx ON public.announcements(target_user_id, created_at DESC);
-
 DROP POLICY IF EXISTS "Public read active announcements" ON public.announcements;
 CREATE POLICY "Users read relevant active announcements" ON public.announcements
 FOR SELECT
@@ -23,7 +21,6 @@ USING (
     )
   )
 );
-
 CREATE OR REPLACE FUNCTION public.admin_send_announcement(
   _title TEXT,
   _body TEXT DEFAULT NULL,
@@ -80,9 +77,7 @@ BEGIN
   RETURN announcement_id;
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.admin_send_announcement(TEXT, TEXT, TEXT, UUID) TO authenticated;
-
 CREATE OR REPLACE FUNCTION public.admin_create_user_investment(
   _user_id UUID,
   _plan_id UUID,
@@ -119,7 +114,7 @@ BEGIN
   ON CONFLICT (user_id) DO NOTHING;
 
   expected_profit := ROUND((_amount * plan_row.daily_roi_percent / 100) * plan_row.duration_days, 2);
-  tx_description := COALESCE(NULLIF(trim(_description), ''), 'Admin-created investment: ' || plan_row.name);
+  tx_description := COALESCE(NULLIF(trim(_description), ''), 'Admin-created simulation investment: ' || plan_row.name);
 
   INSERT INTO public.user_investments (
     user_id,
@@ -153,18 +148,17 @@ BEGIN
     _user_id,
     'investment',
     'Investment activated',
-    'An administrator created an investment of ' || trim(to_char(_amount, 'FM999999999999990.00')) || ' on the ' || plan_row.name || ' plan.'
+    'An administrator created a simulation investment of ' || trim(to_char(_amount, 'FM999999999999990.00')) || ' on the ' || plan_row.name || ' plan.'
   );
 
   PERFORM public.audit(
-    'investment.created',
+    'simulation_investment.created',
     'user_investments',
     investment_id,
-    jsonb_build_object('user_id', _user_id, 'plan_id', _plan_id, 'amount', _amount, 'plan', plan_row.name, 'admin_managed', true)
+    jsonb_build_object('user_id', _user_id, 'plan_id', _plan_id, 'amount', _amount, 'plan', plan_row.name, 'simulation_mode', true)
   );
 
   RETURN investment_id;
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.admin_create_user_investment(UUID, UUID, NUMERIC, TEXT) TO authenticated;

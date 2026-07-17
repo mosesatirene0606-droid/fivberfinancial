@@ -6,7 +6,6 @@
 INSERT INTO public.site_settings (key, value) VALUES
   ('admin_wallet_mode', '{"enabled":true,"description":"Manual admin credits/debits update user balances. No real-money settlement is performed by the app."}'::jsonb)
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
-
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
@@ -48,7 +47,6 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-
 CREATE OR REPLACE FUNCTION public.admin_adjust_balance(
   _user_id UUID,
   _amount NUMERIC,
@@ -108,9 +106,7 @@ BEGIN
   );
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.admin_adjust_balance(UUID, NUMERIC, TEXT, public.transaction_type, TEXT) TO authenticated;
-
 CREATE OR REPLACE FUNCTION public.admin_mark_notification_read(_notification_id UUID)
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN

@@ -1,12 +1,11 @@
--- fivberfinancial simulation mode hardening
--- This keeps the platform as a working investment/account simulation without real-money settlement.
+-- fivberfinancial admin wallet mode hardening
+-- This keeps the platform as a working investment/account workflow without in-app real-money settlement.
 -- Admin-created users receive a welcome notification, and admin manual balance credits/debits
 -- immediately update wallet balance, transactions, notifications, and audit logs.
 
 INSERT INTO public.site_settings (key, value) VALUES
-  ('simulation_mode', '{"enabled":true,"description":"Manual admin credits/debits update simulated user balances. No real-money settlement is performed by the app."}'::jsonb)
+  ('admin_wallet_mode', '{"enabled":true,"description":"Manual admin credits/debits update user balances. No real-money settlement is performed by the app."}'::jsonb)
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
-
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
@@ -42,13 +41,12 @@ BEGIN
     NEW.id,
     'system',
     'Welcome to fivberfinancial',
-    'Your simulation account has been created. Please sign in and change your temporary password.'
+    'Your account has been created. Please sign in and change your temporary password.'
   );
 
   RETURN NEW;
 END;
 $$;
-
 CREATE OR REPLACE FUNCTION public.admin_adjust_balance(
   _user_id UUID,
   _amount NUMERIC,
@@ -72,7 +70,7 @@ BEGIN
   ON CONFLICT (user_id) DO NOTHING;
 
   delta := CASE WHEN _direction = 'credit' THEN _amount ELSE -_amount END;
-  tx_description := COALESCE(NULLIF(trim(_description), ''), CASE WHEN _direction = 'credit' THEN 'Manual simulation credit by administrator' ELSE 'Manual simulation debit by administrator' END);
+  tx_description := COALESCE(NULLIF(trim(_description), ''), CASE WHEN _direction = 'credit' THEN 'Manual wallet credit by administrator' ELSE 'Manual wallet debit by administrator' END);
   tx_title := CASE WHEN _direction = 'credit' THEN 'Balance credited' ELSE 'Balance debited' END;
 
   IF _direction = 'debit' THEN
@@ -95,22 +93,20 @@ BEGIN
     'system',
     tx_title,
     CASE
-      WHEN _direction = 'credit' THEN 'Your simulation account has been credited with ' || trim(to_char(_amount, 'FM999999999999990.00')) || '. Your available balance has increased.'
-      ELSE 'Your simulation account has been debited by ' || trim(to_char(_amount, 'FM999999999999990.00')) || '. Your available balance has been updated.'
+      WHEN _direction = 'credit' THEN 'Your account has been credited with ' || trim(to_char(_amount, 'FM999999999999990.00')) || '. Your available balance has increased.'
+      ELSE 'Your account has been debited by ' || trim(to_char(_amount, 'FM999999999999990.00')) || '. Your available balance has been updated.'
     END
   );
 
   PERFORM public.audit(
-    'simulation_balance.' || _direction,
+    'wallet_balance.' || _direction,
     'balances',
     _user_id,
-    jsonb_build_object('amount', _amount, 'type', _transaction_type, 'description', tx_description, 'simulation_mode', true)
+    jsonb_build_object('amount', _amount, 'type', _transaction_type, 'description', tx_description, 'admin_managed', true)
   );
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.admin_adjust_balance(UUID, NUMERIC, TEXT, public.transaction_type, TEXT) TO authenticated;
-
 CREATE OR REPLACE FUNCTION public.admin_mark_notification_read(_notification_id UUID)
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN

@@ -25,7 +25,6 @@ CREATE POLICY "Users read own withdrawal account" ON public.withdrawal_accounts 
 CREATE POLICY "Users upsert own withdrawal account" ON public.withdrawal_accounts FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users update own unverified withdrawal account" ON public.withdrawal_accounts FOR UPDATE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin')) WITH CHECK (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
 CREATE TRIGGER withdrawal_accounts_updated_at BEFORE UPDATE ON public.withdrawal_accounts FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 CREATE TABLE public.account_limits (
   user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
   kyc_level TEXT NOT NULL DEFAULT 'KYC Level 1',
@@ -42,7 +41,6 @@ ALTER TABLE public.account_limits ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own account limits" ON public.account_limits FOR SELECT TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
 CREATE POLICY "Admins manage account limits" ON public.account_limits FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
 CREATE TRIGGER account_limits_updated_at BEFORE UPDATE ON public.account_limits FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 CREATE TABLE public.user_preferences (
   user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
   hide_balances BOOLEAN NOT NULL DEFAULT false,
@@ -55,7 +53,6 @@ GRANT ALL ON public.user_preferences TO service_role;
 ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users manage own preferences" ON public.user_preferences FOR ALL TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin')) WITH CHECK (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
 CREATE TRIGGER user_preferences_updated_at BEFORE UPDATE ON public.user_preferences FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 CREATE TABLE public.referrals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   referrer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -72,7 +69,6 @@ GRANT ALL ON public.referrals TO service_role;
 ALTER TABLE public.referrals ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own referrals" ON public.referrals FOR SELECT TO authenticated USING (auth.uid() = referrer_id OR auth.uid() = referred_user_id OR public.has_role(auth.uid(), 'admin'));
 CREATE POLICY "Admins manage referrals" ON public.referrals FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
-
 CREATE TABLE public.support_tickets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -92,7 +88,6 @@ CREATE POLICY "Users read own support tickets" ON public.support_tickets FOR SEL
 CREATE POLICY "Users create support tickets" ON public.support_tickets FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Admins update support tickets" ON public.support_tickets FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
 CREATE TRIGGER support_tickets_updated_at BEFORE UPDATE ON public.support_tickets FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 CREATE OR REPLACE FUNCTION public.handle_dashboard_defaults()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
@@ -105,15 +100,12 @@ DROP TRIGGER IF EXISTS on_profile_dashboard_defaults ON public.profiles;
 CREATE TRIGGER on_profile_dashboard_defaults
   AFTER INSERT ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.handle_dashboard_defaults();
-
 INSERT INTO public.account_limits (user_id)
 SELECT id FROM public.profiles
 ON CONFLICT (user_id) DO NOTHING;
-
 INSERT INTO public.user_preferences (user_id)
 SELECT id FROM public.profiles
 ON CONFLICT (user_id) DO NOTHING;
-
 CREATE OR REPLACE FUNCTION public.upsert_withdrawal_account(
   _method TEXT,
   _bank_name TEXT DEFAULT NULL,
@@ -147,7 +139,6 @@ BEGIN
 END;
 $$;
 GRANT EXECUTE ON FUNCTION public.upsert_withdrawal_account(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
-
 CREATE OR REPLACE FUNCTION public.create_support_ticket(_subject TEXT, _message TEXT, _priority TEXT DEFAULT 'normal')
 RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -164,13 +155,11 @@ BEGIN
 END;
 $$;
 GRANT EXECUTE ON FUNCTION public.create_support_ticket(TEXT, TEXT, TEXT) TO authenticated;
-
 -- Seed additional plan names used by the upgraded dashboard comparison.
 INSERT INTO public.investment_plans (name, description, min_amount, max_amount, daily_roi_percent, duration_days, active) VALUES
   ('Growth', 'Balanced growth plan with medium risk and structured duration.', 500, 5000, 1.6, 90, true),
   ('Premium', 'Premium higher-limit plan for experienced investors.', 1000, 20000, 2.1, 180, true)
 ON CONFLICT (name) DO NOTHING;
-
 INSERT INTO public.site_settings (key, value) VALUES
   ('dashboard_upgrade', '{"main_balance_hero":true,"privacy_mode":true,"maturity_countdown":true,"withdrawal_account_setup":true,"support_center":true,"dark_mode":true}'::jsonb)
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();

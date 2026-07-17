@@ -57,7 +57,6 @@ ON CONFLICT (name) DO UPDATE SET
   details = EXCLUDED.details,
   active = true,
   updated_at = now();
-
 CREATE TABLE IF NOT EXISTS public.withdrawal_payment_intents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -71,21 +70,15 @@ CREATE TABLE IF NOT EXISTS public.withdrawal_payment_intents (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
 CREATE INDEX IF NOT EXISTS withdrawal_payment_intents_user_idx
 ON public.withdrawal_payment_intents(user_id, created_at DESC);
-
 CREATE INDEX IF NOT EXISTS withdrawal_payment_intents_withdrawal_idx
 ON public.withdrawal_payment_intents(withdrawal_id, created_at DESC);
-
 GRANT SELECT, INSERT ON public.withdrawal_payment_intents TO authenticated;
 GRANT ALL ON public.withdrawal_payment_intents TO service_role;
-
 ALTER TABLE public.withdrawal_payment_intents ENABLE ROW LEVEL SECURITY;
-
 DROP POLICY IF EXISTS "Users read own withdrawal payment intents"
 ON public.withdrawal_payment_intents;
-
 CREATE POLICY "Users read own withdrawal payment intents"
 ON public.withdrawal_payment_intents
 FOR SELECT TO authenticated
@@ -93,23 +86,18 @@ USING (
   auth.uid() = user_id
   OR public.has_role(auth.uid(), 'admin')
 );
-
 DROP POLICY IF EXISTS "Users create own withdrawal payment intents"
 ON public.withdrawal_payment_intents;
-
 CREATE POLICY "Users create own withdrawal payment intents"
 ON public.withdrawal_payment_intents
 FOR INSERT TO authenticated
 WITH CHECK (auth.uid() = user_id);
-
 DROP TRIGGER IF EXISTS withdrawal_payment_intents_updated_at
 ON public.withdrawal_payment_intents;
-
 CREATE TRIGGER withdrawal_payment_intents_updated_at
 BEFORE UPDATE ON public.withdrawal_payment_intents
 FOR EACH ROW
 EXECUTE FUNCTION public.set_updated_at();
-
 -- Important:
 -- The previous function version used _loan_amount as a parameter name.
 -- PostgreSQL cannot rename function parameters using CREATE OR REPLACE.
@@ -122,7 +110,6 @@ DROP FUNCTION IF EXISTS public.record_withdrawal_payment_intent(
   TEXT,
   TEXT
 );
-
 CREATE FUNCTION public.record_withdrawal_payment_intent(
   _withdrawal_id UUID,
   _intensive_amount NUMERIC,
@@ -215,7 +202,6 @@ BEGIN
   RETURN _intent_id;
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.record_withdrawal_payment_intent(
   UUID,
   NUMERIC,
